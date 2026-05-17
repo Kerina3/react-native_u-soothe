@@ -7,7 +7,8 @@ export type ExercisePhase =
   | "calibrating"
   | "ready"
   | "holding"
-  | "awaitingBaseline" // 💡 新增：等待放下腳跟
+  | "holdInterrupted"
+  | "awaitingBaseline"
   | "repResting"
   | "setResting"
   | "paused"
@@ -30,6 +31,7 @@ interface KegelExerciseProgressProps {
 }
 
 const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
+  type, // 💡 接收運動類型
   sets,
   reps,
   currentSet,
@@ -45,10 +47,12 @@ const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
 }) => {
   const animatedProgress = useRef(new Animated.Value(0)).current;
 
+  // 計算總進度
   const totalReps = sets * reps;
   const currentTotalRep = Math.min((currentSet - 1) * reps + currentRep, totalReps);
   const progressRatio = currentTotalRep / totalReps;
 
+  // 平滑進度條動畫
   useEffect(() => {
     Animated.timing(animatedProgress, {
       toValue: progressRatio,
@@ -58,16 +62,47 @@ const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
     }).start();
   }, [progressRatio, animatedProgress]);
 
-  // 動態色彩與文案系統
+  const isSitting = type === PostureType.SITTING;
+
+  // 💡 動態色彩與文案系統：根據狀態與運動類型返回對應的 UI 設定
   const getVisualState = () => {
     if (isPaused || phase === "paused") return { theme: "#F59E0B", label: "已暫停", icon: "⏸" };
     if (phase === "calibrating") return { theme: "#9CA3AF", label: "鎖定基準中", icon: "🔄" };
     if (phase === "holding") return { theme: "#10B981", label: "保持發力", icon: "🔥" };
+
+    // 動作中斷的紅色警示
+    if (phase === "holdInterrupted") return { theme: "#EF4444", label: "動作中斷", icon: "⚠️" };
+
     if (phase === "repResting" || phase === "setResting" || isResting) return { theme: "#3B82F6", label: "休息恢復", icon: "🌬️" };
-    // 💡 修正：放下腳跟的紅粉色警示
-    if (phase === "awaitingBaseline") return { theme: "#F43F5E", label: "放下腳跟", icon: "⬇️" };
+
+    // 💡 針對放下動作，動態判斷是「腳跟」還是「雙腿」
+    if (phase === "awaitingBaseline") {
+      return {
+        theme: "#F43F5E",
+        label: isSitting ? "放下雙腿" : "放下腳跟",
+        icon: "⬇️"
+      };
+    }
+
     if (phase === "completed") return { theme: "#8B5CF6", label: "訓練完成", icon: "🎉" };
+
+    // 預設準備動作
     return { theme: "#14B8A6", label: "準備動作", icon: "⚡" };
+  };
+
+  // 💡 動態取得畫面中央的巨大提示文字
+  const getInstructionText = () => {
+    switch (phase) {
+      case "calibrating": return "請保持靜止";
+      case "ready":
+        return isSitting ? "⬆️ 請抬起雙腿" : "⬆️ 請墊腳尖";
+      case "holdInterrupted":
+        return isSitting ? "⚠️ 請重新抬起" : "⚠️ 請重新墊起";
+      case "awaitingBaseline":
+        return isSitting ? "⬇️ 請放下雙腿" : "⬇️ 請放下腳跟";
+      case "paused": return "暫停中";
+      default: return "";
+    }
   };
 
   const visual = getVisualState();
@@ -88,7 +123,7 @@ const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
         />
       </View>
 
-      {/* 頂部資訊列 */}
+      {/* 頂部資訊列 (透明磨砂感膠囊) */}
       <View style={styles.topBar} pointerEvents="none">
         <View style={styles.badgeContainer}>
           <Text style={styles.badgeLabel}>組數</Text>
@@ -103,22 +138,19 @@ const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
         </View>
       </View>
 
-      {/* 💡 修改點：操作引導區移至畫面下半部 */}
+      {/* 畫面下半部視覺焦點 */}
       <View style={styles.actionArea} pointerEvents="none">
         {showGiantTimer ? (
-          // 美化後的發光倒數圓圈
+          // 發光倒數圓圈
           <View style={[styles.giantCircle, { borderColor: visual.theme, shadowColor: visual.theme }]}>
             <Text style={styles.timerLabel}>{phase === "holding" ? "維持夾緊" : "休息倒數"}</Text>
             <Text style={[styles.timerValue, { color: visual.theme }]}>{timeRemaining}</Text>
           </View>
         ) : (
-          // 放下腳跟/準備墊腳的膠囊提示
+          // 💡 呼叫動態提示文字函數
           <View style={[styles.instructionPill, { backgroundColor: visual.theme }]}>
             <Text style={styles.instructionText}>
-              {phase === "calibrating" ? "請保持靜止" :
-                phase === "ready" ? "⬆️ 請墊腳尖" :
-                  phase === "awaitingBaseline" ? "⬇️ 請放下腳跟" :
-                    phase === "paused" ? "暫停中" : ""}
+              {getInstructionText()}
             </Text>
           </View>
         )}
@@ -151,24 +183,24 @@ const styles = StyleSheet.create({
   statusBadge: { backgroundColor: "rgba(0, 0, 0, 0.75)", paddingVertical: 10, paddingHorizontal: 18, borderRadius: 24, borderWidth: 1.5 },
   statusText: { fontSize: 15, fontWeight: "900" },
 
-  // 💡 操作引導區排版：靠下對齊，釋出畫面正中心
+  // 操作引導區排版：靠下對齊，釋出畫面正中心
   actionArea: {
     flex: 1,
-    justifyContent: "flex-end", // 往下推
+    justifyContent: "flex-end",
     alignItems: "center",
-    paddingBottom: 40, // 與底部按鈕保持距離
+    paddingBottom: 40,
   },
 
-  // 💡 圓圈美化：更細緻的邊框、主題色發光陰影 (Glow effect)
+  // 圓圈美化：邊框、主題色發光陰影
   giantCircle: {
     width: 220,
     height: 220,
     borderRadius: 110,
     borderWidth: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.65)", // 加深一點底色，讓光暈更明顯
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
     justifyContent: "center",
     alignItems: "center",
-    shadowOffset: { width: 0, height: 0 }, // 置中發光
+    shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 20,
     elevation: 15,

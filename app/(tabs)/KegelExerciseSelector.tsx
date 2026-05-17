@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+// 運動設定的介面定義
 export interface KegelExerciseConfig {
   type: PostureType;
   sets: number; // 組數
@@ -23,6 +24,7 @@ interface KegelExerciseSelectorProps {
   onStartExercise: (config: KegelExerciseConfig) => void;
 }
 
+// 運動類型清單：包含站姿、坐姿、躺姿
 const KEGEL_EXERCISES = [
   {
     type: PostureType.STANDING,
@@ -33,31 +35,58 @@ const KEGEL_EXERCISES = [
     lightColor: "#E6FFFB",
     details: ["✓ 鍛鍊臀肌和骨盆底肌肉", "✓ 改善身體平衡", "✓ 增強腿部力量"],
   },
+  {
+    type: PostureType.SITTING,
+    title: "坐姿凱格爾",
+    description: "雙腿微抬、收縮骨盆底肌",
+    icon: "🪑",
+    color: "#7C3AED", // 紫色 (僅列表顯示用)
+    lightColor: "#F5F3FF",
+    details: ["✓ 適合辦公或居家日常", "✓ 強化骨盆底肌群", "✓ 提升核心穩定力"],
+  },
+  {
+    type: PostureType.LYING,
+    title: "躺姿凱格爾",
+    description: "平躺屈膝、專注核心收縮",
+    icon: "🛏️",
+    color: "#DC2626", // 紅色 (僅列表顯示用)
+    lightColor: "#FEF2F2",
+    details: ["✓ 適合睡前或早晨放鬆時", "✓ 最容易感受肌肉收縮", "✓ 減輕腰背負擔"],
+  },
 ];
+
+// 💡 定義統一的站姿主題色，供設定頁面全域使用
+const UNIFIED_THEME_COLOR = "#0F766E";
+const UNIFIED_THEME_LIGHT_COLOR = "#E6FFFB";
 
 const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
   visible,
   onClose,
   onStartExercise,
 }) => {
+  // 狀態管理
   const [selectedType, setSelectedType] = useState<PostureType | null>(null);
   const [sets, setSets] = useState("3");
   const [reps, setReps] = useState("10");
   const [restSeconds, setRestSeconds] = useState("30");
   const [step, setStep] = useState<"select" | "configure">("select");
 
+  // 處理選擇運動類型
   const handleSelectExercise = (type: PostureType) => {
     setSelectedType(type);
-    setStep("configure");
+    setStep("configure"); // 切換到設定步驟
   };
 
+  // 處理開始運動
   const handleStartExercise = () => {
     if (!selectedType) return;
 
+    // 解析並限制輸入數值的範圍，防止使用者輸入無效數值
     const setsNum = Math.max(1, Math.min(10, parseInt(sets) || 3));
     const repsNum = Math.max(1, Math.min(50, parseInt(reps) || 10));
     const restNum = Math.max(0, Math.min(120, parseInt(restSeconds) || 30));
 
+    // 呼叫父層傳入的開始函數
     onStartExercise({
       type: selectedType,
       sets: setsNum,
@@ -65,7 +94,7 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
       restBetweenSets: restNum,
     });
 
-    // 重設
+    // 重設所有狀態以便下次開啟
     setSelectedType(null);
     setStep("select");
     setSets("3");
@@ -74,11 +103,13 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
     onClose();
   };
 
+  // 返回選擇列表
   const handleBack = () => {
     setSelectedType(null);
     setStep("select");
   };
 
+  // 取得當前選取的運動詳細資訊
   const selectedExercise = KEGEL_EXERCISES.find(
     (ex) => ex.type === selectedType,
   );
@@ -87,7 +118,7 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.backdrop}>
         <View style={styles.container}>
-          {/* 頭部 */}
+          {/* 頭部標題列 */}
           <View style={styles.header}>
             <Pressable onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>✕</Text>
@@ -95,19 +126,22 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
             <Text style={styles.headerTitle}>
               {step === "select" ? "選擇凱格爾運動" : "運動設定"}
             </Text>
+            {/* 佔位符，確保標題置中 */}
             <View style={{ width: 44 }} />
           </View>
 
-          {/* 內容 */}
+          {/* 內容區塊 */}
           {step === "select" ? (
+            // 步驟 1：選擇運動姿勢
             <ScrollView
               style={styles.content}
               showsVerticalScrollIndicator={false}
             >
               <Text style={styles.sectionHint}>
-                點選站姿凱格爾，進入站姿偵測與訓練流程
+                點選您想要進行的姿勢，進入動作偵測與訓練流程
               </Text>
 
+              {/* 動態渲染所有運動選項 */}
               {KEGEL_EXERCISES.map((exercise) => (
                 <Pressable
                   key={exercise.type}
@@ -136,33 +170,35 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
               ))}
 
               <View style={styles.tipCard}>
-                <Text style={styles.tipTitle}>💡 貼士</Text>
+                <Text style={styles.tipTitle}>💡 貼心小提醒</Text>
                 <Text style={styles.tipText}>
-                  目前僅提供站姿凱格爾訓練，流程會先偵測站姿，再引導你墊腳尖與夾緊臀部。
+                  系統會透過 AI 自動偵測您的動作是否標準。若不熟悉動作，可以從最基礎的躺姿或坐姿開始練習。
                 </Text>
               </View>
             </ScrollView>
           ) : (
+            // 步驟 2：設定運動參數 (組數、次數、休息)
             <ScrollView
               style={styles.content}
               showsVerticalScrollIndicator={false}
             >
               {selectedExercise && (
                 <>
-                  {/* 選擇的運動卡片 */}
+                  {/* 當前選擇的運動卡片 (💡 強制統一使用站姿的淺青色背景) */}
                   <View
                     style={[
                       styles.selectedCard,
-                      { backgroundColor: selectedExercise.lightColor },
+                      { backgroundColor: UNIFIED_THEME_LIGHT_COLOR },
                     ]}
                   >
                     <Text style={styles.selectedIcon}>
                       {selectedExercise.icon}
                     </Text>
+                    {/* 💡 強制統一使用站姿的深青色標題 */}
                     <Text
                       style={[
                         styles.selectedTitle,
-                        { color: selectedExercise.color },
+                        { color: UNIFIED_THEME_COLOR },
                       ]}
                     >
                       {selectedExercise.title}
@@ -172,7 +208,7 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
                     </Text>
                   </View>
 
-                  {/* 運動參數設定 */}
+                  {/* 參數設定：組數 */}
                   <View style={styles.settingsSection}>
                     <Text style={styles.settingLabel}>組數</Text>
                     <View style={styles.settingInputRow}>
@@ -203,6 +239,7 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
                     <Text style={styles.settingRange}>(1-10 組)</Text>
                   </View>
 
+                  {/* 參數設定：每組次數 */}
                   <View style={styles.settingsSection}>
                     <Text style={styles.settingLabel}>每組次數</Text>
                     <View style={styles.settingInputRow}>
@@ -233,6 +270,7 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
                     <Text style={styles.settingRange}>(1-50 次)</Text>
                   </View>
 
+                  {/* 參數設定：組間休息 */}
                   <View style={styles.settingsSection}>
                     <Text style={styles.settingLabel}>組間休息</Text>
                     <View style={styles.settingInputRow}>
@@ -267,7 +305,7 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
                     <Text style={styles.settingRange}>(0-120 秒)</Text>
                   </View>
 
-                  {/* 運動概覽 */}
+                  {/* 運動概覽看板 */}
                   <View style={styles.summaryCard}>
                     <Text style={styles.summaryTitle}>運動概覽</Text>
                     <View style={styles.summaryRow}>
@@ -292,7 +330,7 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
                         {Math.ceil(
                           (parseInt(sets) * parseInt(reps) +
                             (parseInt(sets) - 1) * parseInt(restSeconds)) /
-                            20,
+                          20,
                         )}{" "}
                         分鐘
                       </Text>
@@ -303,7 +341,7 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
             </ScrollView>
           )}
 
-          {/* 底部按鈕 */}
+          {/* 底部按鈕區塊 */}
           <View style={styles.footer}>
             {step === "select" ? (
               <Pressable style={styles.cancelButton} onPress={onClose}>
@@ -314,8 +352,9 @@ const KegelExerciseSelector: React.FC<KegelExerciseSelectorProps> = ({
                 <Pressable style={styles.backButton} onPress={handleBack}>
                   <Text style={styles.backButtonText}>上一步</Text>
                 </Pressable>
+                {/* 💡 強制統一使用站姿的深青色按鈕 */}
                 <Pressable
-                  style={styles.startButton}
+                  style={[styles.startButton, { backgroundColor: UNIFIED_THEME_COLOR }]}
                   onPress={handleStartExercise}
                 >
                   <Text style={styles.startButtonText}>開始運動</Text>
@@ -429,7 +468,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEF3C7",
     borderRadius: 12,
     padding: 12,
-    marginTop: 16,
+    marginTop: 8,
+    marginBottom: 24,
     borderLeftWidth: 4,
     borderLeftColor: "#F59E0B",
   },
@@ -599,7 +639,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 10,
-    backgroundColor: "#0F766E",
     justifyContent: "center",
     alignItems: "center",
   },
