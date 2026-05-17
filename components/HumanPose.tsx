@@ -35,17 +35,12 @@ export default function HumanPose(p: HumanPoseProps) {
   return (
     <WebView
       source={{
-        uri: `${blazePose}/?enableSkeleton=${
-          p.enableSkeleton === true ? p.enableSkeleton : "false"
-        }&enableKeyPoints=${
-          p.enableKeyPoints === true ? p.enableKeyPoints : "false"
-        }&color=${p.color ? p.color : ""}&mode=${
-          p.mode ? p.mode : ""
-        }&scoreThreshold=${
-          p.scoreThreshold ? p.scoreThreshold : ""
-        }&isBackCamera=${p.isBackCamera ? p.isBackCamera : ""}&flipHorizontal=${
-          p.flipHorizontal ? p.flipHorizontal : ""
-        }&isFullScreen=${p.isFullScreen ? p.isFullScreen : ""}`,
+        uri: `${blazePose}/?enableSkeleton=${p.enableSkeleton === true ? p.enableSkeleton : "false"
+          }&enableKeyPoints=${p.enableKeyPoints === true ? p.enableKeyPoints : "false"
+          }&color=${p.color ? p.color : ""}&mode=${p.mode ? p.mode : ""
+          }&scoreThreshold=${p.scoreThreshold ? p.scoreThreshold : ""
+          }&isBackCamera=${p.isBackCamera ? p.isBackCamera : ""}&flipHorizontal=${p.flipHorizontal ? p.flipHorizontal : ""
+          }&isFullScreen=${p.isFullScreen ? p.isFullScreen : ""}`,
       }}
       mediaPlaybackRequiresUserAction={false}
       javaScriptEnabled={true}

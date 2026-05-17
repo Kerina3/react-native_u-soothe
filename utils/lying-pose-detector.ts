@@ -1,13 +1,13 @@
 import {
-    BodyPartIndex,
-    KeyPoint,
-    LyingPostureResult,
-    Pose,
+  BodyPartIndex,
+  KeyPoint,
+  LyingPostureResult,
+  Pose,
 } from "@/types/types";
 import {
-    arePointsVisible,
-    calculateAngle,
-    calculateDistance
+  arePointsVisible,
+  calculateAngle,
+  calculateDistance,
 } from "./geometry";
 
 /**

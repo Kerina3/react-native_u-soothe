@@ -1,13 +1,10 @@
 import {
-    BodyPartIndex,
-    KeyPoint,
-    Pose,
-    SittingPostureResult,
+  BodyPartIndex,
+  KeyPoint,
+  Pose,
+  SittingPostureResult,
 } from "@/types/types";
-import {
-    arePointsVisible,
-    calculateAngle
-} from "./geometry";
+import { arePointsVisible, calculateAngle } from "./geometry";
 
 /**
  * 坐姿檢測和分析模塊
@@ -76,6 +73,20 @@ export function detectSittingPosture(pose: Pose): SittingPostureResult {
   const avgKneeX = ((leftKnee?.x || 0) + (rightKnee?.x || 0)) / 2;
   const avgAnkleY = ((leftAnkle?.y || 0) + (rightAnkle?.y || 0)) / 2;
 
+  // 先用膝蓋角度粗判斷，避免站姿（膝蓋接近伸直）被誤判為坐姿。
+  const leftKneeAngleForDetection = calculateAngle(
+    leftHip!,
+    leftKnee!,
+    leftAnkle!,
+  );
+  const rightKneeAngleForDetection = calculateAngle(
+    rightHip!,
+    rightKnee!,
+    rightAnkle!,
+  );
+  const avgKneeAngleForDetection =
+    (leftKneeAngleForDetection + rightKneeAngleForDetection) / 2;
+
   // 檢查臀部是否在膝蓋上方（坐姿特性）
   const hipAboveKnee = avgHipY < avgKneeY;
 
@@ -88,7 +99,8 @@ export function detectSittingPosture(pose: Pose): SittingPostureResult {
   const isSittingRelationship =
     hipAboveKnee &&
     hipToKneeDistance > 0 &&
-    hipToKneeDistance < hipToShoulderDistance * 1.5;
+    hipToKneeDistance < hipToShoulderDistance * 1.5 &&
+    avgKneeAngleForDetection < 150;
 
   if (!isSittingRelationship) {
     result.postureFeedback.push("未檢測到坐姿，請坐在椅子上");

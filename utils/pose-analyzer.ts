@@ -1,138 +1,85 @@
-import {
-    Pose,
-    PostureType,
-    UnifiedPostureResult
-} from "@/types/types";
-import { detectLyingPosture } from "./lying-pose-detector";
+﻿import { Pose, PostureType, UnifiedPostureResult } from "@/types/types";
 import { detectSittingPosture } from "./sitting-pose-detector";
 import { detectStandingPosture } from "./standing-pose-detector";
+import { detectLyingPosture } from "./lying-pose-detector";
 
 /**
- * 統一的姿勢分析器
- * 同時檢測坐、站、躺三種姿勢，並判定最可能的姿勢類型
+ * 統一姿勢分析模塊
+ * 整合坐姿、站姿、躺姿檢測器，返回統一的姿勢分析結果
+ */
+
+/**
+ * 分析人體姿勢，同時檢測坐姿、站姿和躺姿
+ * @param pose - 包含身體關鍵點的 Pose 對象
+ * @returns UnifiedPostureResult - 包含所有姿勢分析結果的統一對象
  */
 export function analyzePosture(pose: Pose): UnifiedPostureResult {
-  // 並行執行三種姿勢檢測
+  // 執行三種姿勢檢測
   const sittingResult = detectSittingPosture(pose);
   const standingResult = detectStandingPosture(pose);
   const lyingResult = detectLyingPosture(pose);
 
-  // 計算每種姿勢的信心度分數
-  const sittingScore = sittingResult.isSitting ? sittingResult.confidence : 0;
-  const standingScore = standingResult.isStanding
-    ? standingResult.confidence
-    : 0;
-  const lyingScore = lyingResult.isLying ? lyingResult.confidence : 0;
+  // 收集各姿勢的信心度
+  const confidences: { type: PostureType; confidence: number }[] = [
+    {
+      type: PostureType.SITTING,
+      confidence: sittingResult.isSitting ? sittingResult.confidence : 0,
+    },
+    {
+      type: PostureType.STANDING,
+      confidence: standingResult.isStanding ? standingResult.confidence : 0,
+    },
+    {
+      type: PostureType.LYING,
+      confidence: lyingResult.isLying ? lyingResult.confidence : 0,
+    },
+  ];
 
-  // 決定最可能的姿勢類型
-  let primaryPosture = PostureType.UNKNOWN;
-  let maxScore = 0;
+  // 找出信心度最高的姿勢作為主要姿勢
+  const best = confidences.reduce(
+    (prev, curr) => (curr.confidence > prev.confidence ? curr : prev),
+    { type: PostureType.UNKNOWN, confidence: 0 },
+  );
 
-  if (sittingScore > maxScore) {
-    primaryPosture = PostureType.SITTING;
-    maxScore = sittingScore;
-  }
-  if (standingScore > maxScore) {
-    primaryPosture = PostureType.STANDING;
-    maxScore = standingScore;
-  }
-  if (lyingScore > maxScore) {
-    primaryPosture = PostureType.LYING;
-    maxScore = lyingScore;
-  }
+  const primaryPosture =
+    best.confidence > 0 ? best.type : PostureType.UNKNOWN;
 
-  // 計算綜合評分（基於最可能的姿勢）
-  const overallScore =
-    primaryPosture === PostureType.SITTING
-      ? sittingScore
-      : primaryPosture === PostureType.STANDING
-        ? standingScore
-        : primaryPosture === PostureType.LYING
-          ? lyingScore
-          : 0;
+  // 計算綜合評分（取主要姿勢的評分）
+  let overallScore = 0;
+  if (primaryPosture === PostureType.SITTING) {
+    const scores = sittingResult.scores;
+    overallScore =
+      (scores.backAngleScore +
+        scores.kneeAngleScore +
+        scores.hipPositionScore +
+        scores.feetPositionScore) /
+      4;
+  } else if (primaryPosture === PostureType.STANDING) {
+    const scores = standingResult.scores;
+    overallScore =
+      (scores.alignmentScore +
+        scores.shoulderScore +
+        scores.kneeScore +
+        scores.bodyHeightScore) /
+      4;
+  } else if (primaryPosture === PostureType.LYING) {
+    const scores = lyingResult.scores;
+    overallScore =
+      (scores.alignmentScore +
+        scores.spineScore +
+        scores.neckScore +
+        scores.supportScore) /
+      4;
+  }
 
   return {
     postureType: primaryPosture,
     detectedPostures: {
-      sitting: sittingResult,
-      standing: standingResult,
-      lying: lyingResult,
+      sitting: sittingResult.isSitting ? sittingResult : null,
+      standing: standingResult.isStanding ? standingResult : null,
+      lying: lyingResult.isLying ? lyingResult : null,
     },
     primaryPosture,
     overallScore,
   };
-}
-
-/**
- * 獲取統一的姿勢描述
- */
-export function getPostureDescription(result: UnifiedPostureResult): string {
-  switch (result.primaryPosture) {
-    case PostureType.SITTING:
-      return result.detectedPostures.sitting?.isProperPosture
-        ? "坐姿正確 ✓"
-        : "坐姿需要改進 ⚠";
-    case PostureType.STANDING:
-      return result.detectedPostures.standing?.isProperPosture
-        ? "站姿正確 ✓"
-        : "站姿需要改進 ⚠";
-    case PostureType.LYING:
-      return result.detectedPostures.lying?.isProperPosture
-        ? "躺姿正確 ✓"
-        : "躺姿需要改進 ⚠";
-    default:
-      return "未檢測到姿勢";
-  }
-}
-
-/**
- * 獲取統一的反饋信息
- */
-export function getUnifiedFeedback(result: UnifiedPostureResult): string[] {
-  const feedback: string[] = [];
-
-  const detectedCount = [
-    result.detectedPostures.sitting?.isSitting,
-    result.detectedPostures.standing?.isStanding,
-    result.detectedPostures.lying?.isLying,
-  ].filter(Boolean).length;
-
-  if (detectedCount === 0) {
-    return ["無法檢測到清晰的姿勢，請調整位置或光線"];
-  }
-
-  // 添加主要姿勢的反饋
-  switch (result.primaryPosture) {
-    case PostureType.SITTING:
-      feedback.push(
-        ...(result.detectedPostures.sitting?.postureFeedback || []),
-      );
-      break;
-    case PostureType.STANDING:
-      feedback.push(
-        ...(result.detectedPostures.standing?.postureFeedback || []),
-      );
-      break;
-    case PostureType.LYING:
-      feedback.push(...(result.detectedPostures.lying?.postureFeedback || []));
-      break;
-  }
-
-  // 如果還檢測到其他姿勢類型，添加警告
-  if (detectedCount > 1) {
-    const detectedPostures: string[] = [];
-    if (result.detectedPostures.sitting?.isSitting)
-      detectedPostures.push("坐姿");
-    if (result.detectedPostures.standing?.isStanding)
-      detectedPostures.push("站姿");
-    if (result.detectedPostures.lying?.isLying) detectedPostures.push("躺姿");
-
-    if (detectedPostures.length > 1) {
-      feedback.push(
-        `同時檢測到多種姿勢 (${detectedPostures.join("、")})，確定目前的主要姿勢為「${result.primaryPosture}」`,
-      );
-    }
-  }
-
-  return feedback;
 }
