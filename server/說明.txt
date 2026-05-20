@@ -1,0 +1,55 @@
+venv裡面目前沒研究出甚麼但現階段不用管他。
+api expo 網址要不一樣!!!!
+如果我功能要正常的話要執行3個東西是嗎?分別是 
+npx convex dev 
+bun .\api-server.js
+bunx expo start 
+.env檔案是存放api金鑰的
+
+python版本不要太新
+
+目前所擁有的分析資料都在程式中
+
+docs = [
+    "08:00 喝了一杯大熱美式咖啡",
+    "09:15 突然有強烈尿意，差點憋不住",
+    "10:30 喝了 500cc 礦泉水",
+    "11:50 去洗手間排尿，尿量普通",
+    "13:00 午餐喝了兩碗熱昆布湯",
+    "14:05 感覺膀胱很脹，急著找廁所",
+    "15:30 喝了一杯去冰無糖綠茶",
+    "16:40 發生急迫性尿失禁，來不及去廁所",
+    "19:00 晚餐喝了一罐啤酒",
+    "20:15 尿急感明顯，趕快去廁所"
+] 
+
+裡面需要更改成我們自己的資料(也就是輸入今天喝了甚麼後變成一個excel的.csv檔案後
+再去vscode裡面做銜接。)
+
+
+目前裡面都是測試用都需要改。
+
+pip install bertopic
+pip install bertopic[visualization]
+pip install jieba
+pip install google-generativeai
+pip install python-dotenv
+pip install pandas
+
+----------------------------------------------------------2026/3/26
+urinary_dataset.csv存文獻的地方
+
+user_daily_logs[]與app連接存放軟體輸入內容
+
+
+
+
+
+ai的執行
+安裝bun add @google/generative-a
+要先開啟
+PS C:\Users\278hi\OneDrive\桌面\u-smoothe\react-native_u-soothe\server> bun .\api-server.js 
+    
+再去PS 
+C:\Users\278hi\OneDrive\桌面\u-smoothe\react-native_u-soothe> bunx expo start
+
