@@ -18,6 +18,9 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@rn-primitives/aspect-ratio": "^1.2.0",
+    "@tensorflow-models/pose-detection": "^2.1.3",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-react-native": "^1.0.0",
     "convex": "^1.33.1",
     "expo": "~54.0.33",
     "expo-auth-session": "~7.0.11",
@@ -30,7 +33,11 @@
     "expo-image": "~3.0.11",
     "expo-linking": "~8.0.11",
     "expo-router": "~6.0.23",
+<<<<<<< HEAD
     "expo-secure-store": "~15.0.8",
+=======
+    "expo-speech": "~14.0.8",
+>>>>>>> 365f211c27cb78a83f455573888631d8f575f522
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
@@ -43,9 +50,12 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1",
+    "react-native-vision-camera": "^4.7.3",
     "react-native-web": "~0.21.0",
     "react-native-webview": "^13.16.1",
-    "react-native-worklets": "0.5.1"
+    "react-native-worklets": "0.5.1",
+    "react-native-worklets-core": "^1.6.3"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
