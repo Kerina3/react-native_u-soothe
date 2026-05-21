@@ -47,11 +47,8 @@
           }
         }
       ],
-<<<<<<< HEAD
-      "expo-secure-store"
-=======
+      "expo-secure-store",
       "react-native-vision-camera"
->>>>>>> 365f211c27cb78a83f455573888631d8f575f522
     ],
     "experiments": {
       "typedRoutes": true,

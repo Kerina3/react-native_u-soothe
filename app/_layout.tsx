@@ -1,11 +1,12 @@
-import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
-import { ConvexReactClient } from "convex/react";
+import { ClerkProvider, useAuth as useClerkAuth, useUser } from "@clerk/clerk-expo";
+import { ConvexReactClient, useQuery } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { Stack } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React from "react";
 import { Platform } from "react-native";
-import { AuthProvider } from "../context/AuthContext";
+import { AuthProvider, useAuth as useCustomAuth } from "../context/AuthContext";
+import { api } from "../convex/_generated/api";
 
 // 初始化 Convex 客戶端
 const convexUrl =
@@ -43,10 +44,28 @@ if (Platform.OS !== "web") {
 }
 
 function MainLayout() {
+  const { user: clerkUser } = useUser();
+  const { user: customUser, login: customLogin } = useCustomAuth();
+
+  // 根據 Clerk 的 Email 查詢資料庫中的使用者資料
+  const userEmail = clerkUser?.primaryEmailAddress?.emailAddress;
+  const dbUser = useQuery(
+    api.users.getUserByEmail,
+    userEmail ? { Gmail: userEmail } : "skip",
+  );
+
+  // 當從資料庫查到資料後，同步寫入自定義 Context 以進行全域狀態共用
+  React.useEffect(() => {
+    if (dbUser && !customUser) {
+      customLogin(dbUser);
+    }
+  }, [dbUser, customUser]);
+
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="auth" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="diet"
         options={{
@@ -74,7 +93,7 @@ function MainLayout() {
 export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+      <ConvexProviderWithClerk client={convex} useAuth={useClerkAuth}>
         <AuthProvider>
           <MainLayout />
         </AuthProvider>

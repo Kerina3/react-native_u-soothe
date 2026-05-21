@@ -104,6 +104,7 @@ export default function RegisterScreen() {
           Age: age.trim(),
           Gender: gender,
           Role: role,
+          ClerkId: completeSignUp.createdUserId || undefined,
         }),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error("CONVEX_SYNC_TIMEOUT")), 5000)

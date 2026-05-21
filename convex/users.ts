@@ -59,6 +59,7 @@ export const storeUser = mutation({
         Role: args.Role,
         Age: args.Age,
         Gender: args.Gender,
+        ClerkId: args.ClerkId, // 儲存 ClerkId!
       });
       return existingUser._id;
     }
@@ -70,6 +71,7 @@ export const storeUser = mutation({
       Age: args.Age,
       Gender: args.Gender,
       Password: "clerk-authenticated", // 實際驗證由 Clerk 負責
+      ClerkId: args.ClerkId, // 儲存 ClerkId!
     });
   },
 });
@@ -108,6 +110,60 @@ export const getUserByEmail = query({
       .query("users")
       .withIndex("by_gmail", (q) => q.eq("Gmail", args.Gmail))
       .first();
+  },
+});
+
+// Webhook 專用：建立或同步 Clerk 使用者
+export const upsertUserFromClerk = mutation({
+  args: {
+    ClerkId: v.string(),
+    Gmail: v.string(),
+    Name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_gmail", (q) => q.eq("Gmail", args.Gmail))
+      .first();
+
+    if (existingUser) {
+      await ctx.db.patch(existingUser._id, {
+        ClerkId: args.ClerkId,
+        Name: args.Name,
+      });
+      return existingUser._id;
+    }
+
+    return await ctx.db.insert("users", {
+      ClerkId: args.ClerkId,
+      Gmail: args.Gmail,
+      Name: args.Name,
+      Password: "clerk-authenticated",
+      Role: "患者端", // 預設值，後續可在 App 修改
+      Age: 0,
+      Gender: "男",
+    });
+  },
+});
+
+// Webhook 專用：刪除 Clerk 使用者
+export const deleteUserFromClerk = mutation({
+  args: {
+    ClerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("ClerkId", args.ClerkId))
+      .first();
+
+    if (user) {
+      await ctx.db.delete(user._id);
+      console.log(`Successfully deleted user with ClerkId: ${args.ClerkId}`);
+      return true;
+    }
+    console.log(`User with ClerkId: ${args.ClerkId} not found`);
+    return false;
   },
 });
 

@@ -33,11 +33,8 @@
     "expo-image": "~3.0.11",
     "expo-linking": "~8.0.11",
     "expo-router": "~6.0.23",
-<<<<<<< HEAD
     "expo-secure-store": "~15.0.8",
-=======
     "expo-speech": "~14.0.8",
->>>>>>> 365f211c27cb78a83f455573888631d8f575f522
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",

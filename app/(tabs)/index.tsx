@@ -1,5 +1,9 @@
+import { useAuth as useClerkAuth, useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
+import React from "react";
 import {
+  Alert,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -7,13 +11,39 @@ import {
   Text,
   View,
 } from "react-native";
+import { useAuth as useCustomAuth } from "../../context/AuthContext";
 
 export default function HomePage() {
   const router = useRouter();
+  const { signOut } = useClerkAuth();
+  const { user: clerkUser } = useUser();
+  const { user: customUser, logout: customLogout } = useCustomAuth();
+
+  const getRoleDisplayName = () => {
+    const roleStr = customUser?.Role;
+    if (roleStr === "患者端" || roleStr === "patient") return "患者端";
+    if (roleStr === "照護者端" || roleStr === "caregiver") return "照護者端";
+    return "已驗證用戶";
+  };
+
+  const handleLogout = () => {
+    Alert.alert("登出提示", "確定要登出您的帳戶嗎？", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "確定登出",
+        style: "destructive",
+        onPress: async () => {
+          await signOut();
+          customLogout();
+          router.replace("/auth");
+        },
+      },
+    ]);
+  };
 
   const handleNavigation = (route: string) => {
     if (route === "home") {
-      router.push("/");
+      router.push("/(tabs)");
     } else if (route === "patient") {
       router.push("/patient-dashboard" as any);
     } else {
@@ -30,11 +60,22 @@ export default function HomePage() {
         {/* 頭部 */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>健康管理</Text>
-            <Text style={styles.headerSubtitle}>患者首頁</Text>
+            <Text style={styles.headerTitle}>
+              你好，{clerkUser?.fullName || customUser?.Name || "使用者"}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {getRoleDisplayName()}首頁
+            </Text>
           </View>
-          <Pressable style={styles.avatar}>
-            <Text style={styles.avatarIcon}>👤</Text>
+          <Pressable style={styles.avatar} onPress={handleLogout}>
+            {clerkUser?.imageUrl ? (
+              <Image
+                source={{ uri: clerkUser.imageUrl }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarIcon}>👤</Text>
+            )}
           </Pressable>
         </View>
 
@@ -170,6 +211,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#DCCFB8",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 22,
   },
   avatarIcon: {
     fontSize: 18,
