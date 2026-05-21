@@ -15,7 +15,7 @@ export type ExercisePhase =
   | "completed";
 
 interface KegelExerciseProgressProps {
-  type: PostureType;
+  type: PostureType; // 💡 接收運動類型
   sets: number;
   reps: number;
   currentSet: number;
@@ -31,7 +31,7 @@ interface KegelExerciseProgressProps {
 }
 
 const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
-  type, // 💡 接收運動類型
+  type,
   sets,
   reps,
   currentSet,
@@ -62,7 +62,9 @@ const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
     }).start();
   }, [progressRatio, animatedProgress]);
 
+  // 💡 判斷當前的運動模式
   const isSitting = type === PostureType.SITTING;
+  const isLying = type === PostureType.LYING;
 
   // 💡 動態色彩與文案系統：根據狀態與運動類型返回對應的 UI 設定
   const getVisualState = () => {
@@ -75,11 +77,15 @@ const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
 
     if (phase === "repResting" || phase === "setResting" || isResting) return { theme: "#3B82F6", label: "休息恢復", icon: "🌬️" };
 
-    // 💡 針對放下動作，動態判斷是「腳跟」還是「雙腿」
+    // 💡 針對放下動作，動態判斷是「腳跟」、「雙腿」還是「臀部」
     if (phase === "awaitingBaseline") {
+      let labelText = "放下腳跟";
+      if (isSitting) labelText = "放下雙腿";
+      else if (isLying) labelText = "放下臀部";
+
       return {
         theme: "#F43F5E",
-        label: isSitting ? "放下雙腿" : "放下腳跟",
+        label: labelText,
         icon: "⬇️"
       };
     }
@@ -93,15 +99,24 @@ const KegelExerciseProgress: React.FC<KegelExerciseProgressProps> = ({
   // 💡 動態取得畫面中央的巨大提示文字
   const getInstructionText = () => {
     switch (phase) {
-      case "calibrating": return "請保持靜止";
+      case "calibrating":
+        return "請保持靜止";
       case "ready":
-        return isSitting ? "⬆️ 請抬起雙腿" : "⬆️ 請墊腳尖";
+        if (isSitting) return "⬆️ 請抬起雙腿";
+        if (isLying) return "⬆️ 請抬起臀部";
+        return "⬆️ 請墊腳尖";
       case "holdInterrupted":
-        return isSitting ? "⚠️ 請重新抬起" : "⚠️ 請重新墊起";
+        if (isSitting) return "⚠️ 請重新抬起";
+        if (isLying) return "⚠️ 請重新抬臀";
+        return "⚠️ 請重新墊起";
       case "awaitingBaseline":
-        return isSitting ? "⬇️ 請放下雙腿" : "⬇️ 請放下腳跟";
-      case "paused": return "暫停中";
-      default: return "";
+        if (isSitting) return "⬇️ 請放下雙腿";
+        if (isLying) return "⬇️ 請放下臀部";
+        return "⬇️ 請放下腳跟";
+      case "paused":
+        return "暫停中";
+      default:
+        return "";
     }
   };
 

@@ -1,5 +1,6 @@
 import HumanPose from "@/components/HumanPose";
 import { Pose, PostureType } from "@/types/types";
+import { LyingExerciseController, LyingPhase } from "@/utils/lying-pose-detector"; // 💡 匯入躺姿控制器
 import { SittingExerciseController, SittingPhase } from "@/utils/sitting-pose-detector";
 import { StandingExerciseController, StandingPhase } from "@/utils/standing-pose-detector";
 import * as Speech from "expo-speech";
@@ -17,8 +18,8 @@ export interface KegelExerciseSessionProps {
   onSessionCancel: () => void;
 }
 
-// 建立一個聯合型別，包容兩種運動的狀態階段
-type ActivePhase = StandingPhase | SittingPhase;
+// 💡 建立一個聯合型別，包容三種運動的狀態階段
+type ActivePhase = StandingPhase | SittingPhase | LyingPhase;
 
 const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
   type,
@@ -30,7 +31,9 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
 }) => {
   // 核心運動狀態
   const [phase, setPhase] = useState<ActivePhase>(
-    type === PostureType.SITTING ? "awaitingSitting" : "awaitingStanding"
+    type === PostureType.SITTING ? "awaitingSitting" :
+      type === PostureType.LYING ? "awaitingLying" :
+        "awaitingStanding"
   );
   const [currentSet, setCurrentSet] = useState(1);
   const [currentRep, setCurrentRep] = useState(1);
@@ -41,9 +44,10 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
   // const [tutorialStep, setTutorialStep] = useState(1);
   // const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  // 💡 分別準備兩個控制器的參考 (Ref)
+  // 💡 分別準備三個控制器的參考 (Ref)
   const standingCtrl = useRef<StandingExerciseController | null>(null);
   const sittingCtrl = useRef<SittingExerciseController | null>(null);
+  const lyingCtrl = useRef<LyingExerciseController | null>(null);
 
   // === 💡 初始化：檢查是否需要顯示對應的教學 (目前先停用，直接跳過) ===
   /*
@@ -53,6 +57,7 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
         let storageKey = "";
         if (type === PostureType.STANDING) storageKey = "TUTORIAL_SKIPPED_STANDING";
         else if (type === PostureType.SITTING) storageKey = "TUTORIAL_SKIPPED_SITTING";
+        // else if (type === PostureType.LYING) storageKey = "TUTORIAL_SKIPPED_LYING";
 
         if (storageKey) {
           const skipped = await AsyncStorage.getItem(storageKey);
@@ -75,6 +80,7 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
     // 每次重新啟動前先銷毀舊的控制器
     standingCtrl.current?.destroy();
     sittingCtrl.current?.destroy();
+    lyingCtrl.current?.destroy();
 
     // 共用的狀態更新邏輯
     const handlePhaseChange = (newPhase: ActivePhase, rep: number, set: number) => {
@@ -83,7 +89,7 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
       setCurrentSet(set);
     };
 
-    // 判斷要實例化哪一種 Controller
+    // 💡 判斷要實例化哪一種 Controller
     if (type === PostureType.STANDING) {
       setPhase("awaitingStanding");
       standingCtrl.current = new StandingExerciseController({
@@ -102,6 +108,15 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
         onTick: setTimeLeft,
         onComplete: () => setPhase("completed"),
       });
+    } else if (type === PostureType.LYING) {
+      setPhase("awaitingLying");
+      lyingCtrl.current = new LyingExerciseController({
+        sets, reps, restBetweenSets, holdSeconds: 5, repRestSeconds: 2,
+        speak: Speech.speak,
+        onPhaseChange: handlePhaseChange,
+        onTick: setTimeLeft,
+        onComplete: () => setPhase("completed"),
+      });
     }
   }, [type, sets, reps, restBetweenSets]); // 💡 若重新啟用教學，需在 dependency array 加上 showTutorial
 
@@ -111,6 +126,7 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
       Speech.stop();
       standingCtrl.current?.destroy();
       sittingCtrl.current?.destroy();
+      lyingCtrl.current?.destroy();
     };
   }, []);
 
@@ -134,12 +150,15 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
       phase === "paused" ? standingCtrl.current.resume() : standingCtrl.current.pause();
     } else if (type === PostureType.SITTING && sittingCtrl.current) {
       phase === "paused" ? sittingCtrl.current.resume() : sittingCtrl.current.pause();
+    } else if (type === PostureType.LYING && lyingCtrl.current) {
+      phase === "paused" ? lyingCtrl.current.resume() : lyingCtrl.current.pause();
     }
   };
 
   const handleCancel = () => {
     standingCtrl.current?.destroy();
     sittingCtrl.current?.destroy();
+    lyingCtrl.current?.destroy();
     Speech.stop();
     onSessionCancel();
   };
@@ -148,13 +167,15 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
     // 💡 若未來重新啟用教學，請把這行判斷加回來：if (showTutorial === false) { ... }
     if (type === PostureType.STANDING) standingCtrl.current?.onPoseFrame(pose);
     else if (type === PostureType.SITTING) sittingCtrl.current?.onPoseFrame(pose);
+    else if (type === PostureType.LYING) lyingCtrl.current?.onPoseFrame(pose);
   };
 
   // 將底層的特定 Phase 轉換為 UI 共用的 ExercisePhase
   const mapPhaseToProgressPhase = (p: ActivePhase): ExercisePhase => {
     switch (p) {
       case "awaitingStanding":
-      case "awaitingSitting": return "setup";
+      case "awaitingSitting":
+      case "awaitingLying": return "setup";
       case "calibrating": return "calibrating";
       case "readyForTiptoe":
       case "readyForLift": return "ready";
@@ -171,19 +192,17 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
 
   // === 💡 動態取得教學圖片 (目前先停用) ===
   /*
-  const getTutorialImage = () => {
-    if (type === PostureType.SITTING) {
-      if (tutorialStep === 1) return require("@/assets/images/sitting_step1.png");
-      if (tutorialStep === 2) return require("@/assets/images/sitting_step2.png");
-      return require("@/assets/images/sitting_step3.png");
-    }
-    if (tutorialStep === 1) return require("@/assets/images/kegel_step1.png");
-    if (tutorialStep === 2) return require("@/assets/images/kegel_step2.png");
-    return require("@/assets/images/kegel_step3.png");
-  };
+  const getTutorialImage = () => { ... }
   */
 
-  const isAwaiting = phase === "awaitingStanding" || phase === "awaitingSitting";
+  const isAwaiting = phase === "awaitingStanding" || phase === "awaitingSitting" || phase === "awaitingLying";
+
+  // 💡 動態產生等待畫面的標題
+  const getSetupTitle = () => {
+    if (type === PostureType.SITTING) return "請以側身或 45° 坐在椅上";
+    if (type === PostureType.LYING) return "請以側面入鏡平躺，雙膝彎曲踩地";
+    return "請以 45° 半側身站定";
+  };
 
   return (
     <View style={styles.container}>
@@ -200,59 +219,13 @@ const KegelExerciseSession: React.FC<KegelExerciseSessionProps> = ({
         isFullScreen={true}
       />
 
-      {/* === 💡 1. 運動教學彈窗 (Tutorial Modal) (目前先停用) === */}
-      {/* {showTutorial === true && (
-        <View style={styles.tutorialOverlay}>
-          <View style={styles.tutorialBox}>
-            <Pressable style={styles.tutorialCloseBtn} onPress={handleCancel}>
-              <Text style={styles.tutorialCloseText}>✕</Text>
-            </Pressable>
-
-            <Image
-              source={getTutorialImage()}
-              style={styles.tutorialImage}
-              resizeMode="contain"
-            />
-
-            <View style={styles.dotContainer}>
-              {[1, 2, 3].map((num) => (
-                <View key={num} style={[styles.dot, tutorialStep === num && styles.activeDot]} />
-              ))}
-            </View>
-
-            <View style={styles.actionRow}>
-              {tutorialStep === 3 ? (
-                <Pressable
-                  style={styles.checkboxContainer}
-                  onPress={() => setDontShowAgain(!dontShowAgain)}
-                >
-                  <View style={[styles.checkbox, dontShowAgain && styles.checkboxActive]}>
-                    {dontShowAgain && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                  <Text style={styles.checkboxLabel}>不再顯示此教學</Text>
-                </Pressable>
-              ) : (
-                <View style={{ flex: 1 }} />
-              )}
-            </View>
-
-            <Pressable style={styles.tutorialNextBtn} onPress={handleTutorialNext}>
-              <Text style={styles.tutorialNextBtnText}>
-                {tutorialStep < 3 ? "下一步" : "確定"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-      */}
-
       {/* 2. 初始化等待畫面 */}
       {/* 💡 若重新啟用教學，請把這行改為：showTutorial === false && isAwaiting && (...) */}
       {isAwaiting && (
         <View style={styles.setupOverlay}>
           <View style={styles.setupBox}>
             <Text style={styles.setupTitle}>
-              {type === PostureType.SITTING ? "請以側身或 45° 坐在椅上" : "請以 45° 半側身站定"}
+              {getSetupTitle()}
             </Text>
             <Text style={styles.setupDesc}>全身入鏡，系統正在鎖定您的骨架...</Text>
             <Pressable style={styles.cancelTextBtn} onPress={handleCancel}>
@@ -304,28 +277,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
   hudOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 10 },
 
-  // --- 教學視窗樣式 (目前雖然沒用到，但保留以便之後開啟) ---
-  tutorialOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0, 0, 0, 0.7)", justifyContent: "center", alignItems: "center", zIndex: 50 },
-  tutorialBox: { width: "85%", backgroundColor: "#FFFFFF", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 10 },
-  tutorialCloseBtn: { position: "absolute", top: 16, right: 16, width: 32, height: 32, justifyContent: "center", alignItems: "center", zIndex: 1 },
-  tutorialCloseText: { fontSize: 20, color: "#9CA3AF", fontWeight: "bold" },
-  tutorialImage: { width: "100%", height: 320, marginBottom: 16 },
-  dotContainer: { flexDirection: "row", gap: 8, marginBottom: 20 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#E5E7EB" },
-  activeDot: { width: 24, backgroundColor: "#0F766E" },
-  actionRow: { width: "100%", height: 24, marginBottom: 20, alignItems: "center" },
-  checkboxContainer: { flexDirection: "row", alignItems: "center", gap: 8 },
-  checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: "#D1D5DB", justifyContent: "center", alignItems: "center", backgroundColor: "#FFF" },
-  checkboxActive: { backgroundColor: "#0F766E", borderColor: "#0F766E" },
-  checkmark: { color: "#FFF", fontSize: 12, fontWeight: "bold" },
-  checkboxLabel: { fontSize: 14, color: "#4B5563", fontWeight: "500" },
-  tutorialNextBtn: { width: "100%", backgroundColor: "#0F766E", paddingVertical: 14, borderRadius: 12, alignItems: "center" },
-  tutorialNextBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold", letterSpacing: 1 },
-
   // --- 其他原有樣式 ---
   setupOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0, 0, 0, 0.6)", justifyContent: "flex-end", paddingBottom: 60, zIndex: 20 },
   setupBox: { backgroundColor: "rgba(20, 20, 25, 0.95)", marginHorizontal: 24, padding: 24, borderRadius: 20, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
-  setupTitle: { color: "#FFF", fontSize: 20, fontWeight: "bold", marginBottom: 12 },
+  setupTitle: { color: "#FFF", fontSize: 20, fontWeight: "bold", marginBottom: 12, textAlign: "center" },
   setupDesc: { color: "#A1A1AA", fontSize: 15, textAlign: "center", marginBottom: 24 },
   cancelTextBtn: { paddingVertical: 8, paddingHorizontal: 16 },
   cancelTextBtnLabel: { color: "#EF4444", fontSize: 16, fontWeight: "600" },
